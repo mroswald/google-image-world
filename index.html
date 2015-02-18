@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Google Image World</title>
+  <style>
+    html, body, #map-canvas {
+      height: 100%;
+      margin: 0;
+      padding: 0
+    }
+  </style>
+  <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&signed_in=true"></script>
+  <script>
+    var maxZoom = 10,
+      initZoom = 10;
+    var tileSize = 512;
+
+    if (window.innerWidth < 600 || window.innerHeight < 600) {
+      initZoom = 9;
+    }
+    if (window.innerWidth < 400 || window.innerHeight < 400) {
+      initZoom = 8;
+    }
+
+    function getBaseUrl() {
+      var loc = window.location;
+      var pathName = loc.pathname.substring(0, loc.pathname.lastIndexOf('/') + 1);
+      return loc.href.substring(0, loc.href.length - ((loc.pathname + loc.search + loc.hash).length - pathName.length));
+    }
+
+    var moonTypeOptions = {
+      getTileUrl: function(coord, zoom) {
+        var normalizedCoord = getNormalizedCoord(coord, zoom);
+        if (!normalizedCoord) {
+          return null;
+        }
+        var bound = Math.pow(2, zoom);
+        return getBaseUrl() + 'tiles' +
+        '/' + zoom + '/' + normalizedCoord.x + '/' +
+        normalizedCoord.y + '/' + maxZoom;
+      },
+      tileSize: new google.maps.Size(tileSize, tileSize),
+      maxZoom: maxZoom,
+      minZoom: 5,
+      radius: 1738000,
+      name: 'Moon'
+    };
+
+    var moonMapType = new google.maps.ImageMapType(moonTypeOptions);
+
+    function initialize() {
+
+      fromPointToLatLng = function(point) {
+        point.x += .5;
+        point.y += .5;
+        var lng = point.x / tileSize * 360 - 180;
+        var n = Math.PI - 2 * Math.PI * point.y / tileSize;
+        var lat = (180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))));
+        return new google.maps.LatLng(lat, lng);
+      };
+
+      var myLatlng = fromPointToLatLng({x: 270,y: 25});
+
+      var mapOptions = {
+        center: myLatlng,
+        zoom: initZoom,
+        streetViewControl: false,
+        mapTypeControlOptions: {
+          mapTypeIds: ['moon']
+        }
+      };
+
+      var map = new google.maps.Map(document.getElementById('map-canvas'),
+              mapOptions);
+      map.mapTypes.set('moon', moonMapType);
+      map.setMapTypeId('moon');
+    }
+
+    // Normalizes the coords that tiles repeat across the x axis (horizontally)
+    // like the standard Google map tiles.
+    function getNormalizedCoord(coord, zoom) {
+      var y = coord.y;
+      var x = coord.x;
+
+      // tile range in one direction range is dependent on zoom level
+      // 0 = 1 tile, 1 = 2 tiles, 2 = 4 tiles, 3 = 8 tiles, etc
+      var tileRange = 1 << zoom;
+
+      // don't repeat across y-axis (vertically)
+      if (y < 0 || y >= tileRange) {
+        return null;
+      }
+
+      // repeat across x-axis
+      if (x < 0 || x >= tileRange) {
+        x = (x % tileRange + tileRange) % tileRange;
+      }
+
+      return {
+        x: x,
+        y: y
+      };
+    }
+
+    google.maps.event.addDomListener(window, 'load', initialize);
+
+  </script>
+</head>
+<body>
+<div id="map-canvas"></div>
+</body>
+</html>
